@@ -8,34 +8,37 @@ namespace FilesToFolders
 {
     class Program
     {
-        /// <summary>
-        /// Main function.
-        /// </summary>
-        /// <param name="args">Command line arguments.</param>
-        /// <returns>Error code.</returns>
         static int Main(string[] args)
         {
-            // Initialization of standart values for arguments
             string path = AppDomain.CurrentDomain.BaseDirectory;    // Use execution directory as default path
-            DirectoryInfo dir = new DirectoryInfo(args[0]);
             long folderSize = 100;    // 100 files per folder by default
 
             // Parsing command line
             if (args.Length > 0)
             {
+                string temp_path = args[0];
+
+                // Check if last char is '"' and remove it
+                // With whitespaces in paths, Powershell for some reason leaves the '"' at the path's end
+                // IO functions fail in this case because '"' is an illegal char for a path
+                if (temp_path[temp_path.Length - 1] == '"')
+                    temp_path = temp_path.Remove(temp_path.Length - 1);
+
                 // Check if first argument is valid and existing path
                 try
                 {
-                    dir = new DirectoryInfo(args[0]);
-                    if (!dir.Exists)
+                    if (!Directory.Exists(temp_path))
                     {
                         Console.WriteLine("Error: Invalid path!");
+                        Console.WriteLine(temp_path);
                         return 1;
                     }
+                    path = Path.GetFullPath(temp_path);
                 }
                 catch (Exception e)
                 {
                     Console.WriteLine(e.Message);
+                    Console.WriteLine(temp_path);
                     return -1;
                 }
 
@@ -46,17 +49,18 @@ namespace FilesToFolders
                     return 1;
                 }
             }
-            
-            List<FileInfo> files = new List<FileInfo>(dir.GetFiles());
+
+            DirectoryInfo dirInfo = new DirectoryInfo(path);
+            List<FileInfo> files = new List<FileInfo>(dirInfo.GetFiles());
             long folderNum = (long)Math.Ceiling(files.Count / (double)folderSize);    // Needed amount of folders to fit all files in path with given folderSize
 
-            Console.Write("Path: " + path + "\nFodler size: " + folderSize.ToString() + "\nFile count: " + files.Count.ToString() + "\n");
+            Console.Write("Path: " + path + "\nFolder size: " + folderSize.ToString() + "\nFile count: " + files.Count.ToString() + "\n");
 
             // Create numbered (leading zeros) subdirectories and move amount of files into them equal to folderSize or remaining rest
             for (long i = 1; i <= folderNum; i++)
             {
                 string dirName = i.ToString("D" + folderNum.ToString().Length.ToString());
-                dir.CreateSubdirectory(dirName);
+                Directory.CreateDirectory(Path.Combine(path, dirName));
 
                 for (long j = 0; j < folderSize && files.Count > 0; j++)
                 {
